@@ -140,8 +140,28 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating subscription:", error);
+    
+    // Provide more specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes('PayPal credentials not configured')) {
+        return NextResponse.json(
+          { error: "PayPal payment is not configured. Please contact support." },
+          { status: 503 }
+        );
+      }
+      if (error.message.includes('PayPal auth failed')) {
+        return NextResponse.json(
+          { error: "PayPal authentication failed. Please check configuration." },
+          { status: 503 }
+        );
+      }
+    }
+    
     return NextResponse.json(
-      { error: "Internal server error" },
+      { 
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

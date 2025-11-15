@@ -129,7 +129,9 @@ function PricingContent() {
 
       if (!response.ok) {
         const error = await response.json();
-        toast.error(error.error || 'Failed to create payment');
+        const errorMessage = error.error || error.message || 'Failed to create payment';
+        toast.error(errorMessage);
+        console.error('Payment creation error:', error);
         return;
       }
 
