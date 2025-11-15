@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +13,8 @@ import { toast } from 'sonner';
 
 export default function PricingPage() {
   const { data: session } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [currentTier, setCurrentTier] = useState<'free' | 'pro' | 'team'>('free');
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
@@ -23,6 +26,60 @@ export default function PricingPage() {
       loadCurrentTier();
     }
   }, [session]);
+
+  // Handle PayPal callback
+  useEffect(() => {
+    const token = searchParams.get('token');
+    const success = searchParams.get('success');
+    const canceled = searchParams.get('canceled');
+
+    if (canceled) {
+      toast.info('Payment canceled');
+      sessionStorage.removeItem('paypal_order_id');
+      router.replace('/pricing');
+      return;
+    }
+
+    if (success) {
+      // Get order ID from URL token or sessionStorage
+      const orderId = token || sessionStorage.getItem('paypal_order_id');
+      if (orderId) {
+        verifyPayment(orderId);
+        sessionStorage.removeItem('paypal_order_id');
+      } else {
+        toast.error('Payment verification failed: Order ID not found');
+        router.replace('/pricing');
+      }
+    }
+  }, [searchParams, router]);
+
+  const verifyPayment = async (orderId: string) => {
+    try {
+      const response = await fetch('/api/subscriptions/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Payment verification failed');
+        router.replace('/pricing');
+        return;
+      }
+
+      toast.success('Payment successful! Your subscription is now active.');
+      // Reload tier and clean up URL
+      await loadCurrentTier();
+      router.replace('/pricing');
+    } catch (error) {
+      console.error('Error verifying payment:', error);
+      toast.error('An error occurred verifying your payment');
+      router.replace('/pricing');
+    }
+  };
 
   const loadPlans = async () => {
     try {
@@ -47,9 +104,51 @@ export default function PricingPage() {
     }
   };
 
-  const handleUpgrade = (planName: string) => {
-    // TODO: Implement upgrade flow with PayPal
-    toast.info('Upgrade functionality coming soon!');
+  const handleUpgrade = async (planName: string) => {
+    if (!session) {
+      toast.error('Please sign in to upgrade');
+      return;
+    }
+
+    if (planName === 'free') {
+      return;
+    }
+
+    try {
+      // Create PayPal order
+      const response = await fetch('/api/subscriptions/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          planName,
+          billingPeriod,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create payment');
+        return;
+      }
+
+      const { orderId, approvalUrl } = await response.json();
+
+      if (!approvalUrl) {
+        toast.error('Failed to get payment URL');
+        return;
+      }
+
+      // Store order ID in sessionStorage for verification
+      sessionStorage.setItem('paypal_order_id', orderId);
+
+      // Redirect to PayPal
+      window.location.href = approvalUrl;
+    } catch (error) {
+      console.error('Error initiating payment:', error);
+      toast.error('An error occurred. Please try again.');
+    }
   };
 
   const getPlanIcon = (name: string) => {

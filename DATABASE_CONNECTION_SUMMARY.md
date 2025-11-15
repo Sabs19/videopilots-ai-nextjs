@@ -106,7 +106,39 @@ If the connection fails in Coolify:
 
    - Double-check username and password in Coolify's PostgreSQL service
    - Ensure password doesn't contain unencoded special characters
+   - **If you get "password authentication failed" error:**
+     - Go to your PostgreSQL service in Coolify
+     - Check the actual credentials (username and password) shown in the service
+     - Copy the **exact** connection string from the PostgreSQL service
+     - Update `DATABASE_URL` in your app's environment variables with the correct credentials
+     - If password has special characters, it may need URL encoding (e.g., `@` becomes `%40`)
 
-4. **Network Access:**
+4. **Password Authentication Failed (Error: 28P01):**
+
+   **This error means the credentials in `DATABASE_URL` don't match the PostgreSQL service.**
+
+   **To fix:**
+
+   1. Go to your PostgreSQL service/resource in Coolify
+   2. Find the **Connection String** or **Database URL** section
+   3. Copy the **exact** connection string provided by Coolify
+   4. Go to your app's **Environment Variables** in Coolify
+   5. Update `DATABASE_URL` with the correct connection string
+   6. Ensure both "Available at Buildtime" and "Available at Runtime" are enabled
+   7. Redeploy or restart your application
+   8. Try running `npm run db:migrate` again
+
+   **Alternative: If connection string is not shown, construct it from individual values:**
+
+   - Look for: `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST`, `POSTGRES_DB`, `POSTGRES_PORT`
+   - Format: `postgresql://POSTGRES_USER:POSTGRES_PASSWORD@POSTGRES_HOST:POSTGRES_PORT/POSTGRES_DB?sslmode=require`
+   - **Important:** If password contains special characters, URL-encode them:
+     - `@` → `%40`
+     - `#` → `%23`
+     - `%` → `%25`
+     - `&` → `%26`
+     - etc.
+
+5. **Network Access:**
    - Ensure both services (app and database) are in the same Coolify network
    - Check if any firewall rules are blocking the connection

@@ -78,11 +78,31 @@ export default function SettingsPage() {
   };
 
   const handleCancelSubscription = async () => {
-    if (!confirm('Are you sure you want to cancel your subscription?')) {
+    if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of your billing period.')) {
       return;
     }
-    // TODO: Implement cancel subscription API
-    toast.info('Cancel subscription coming soon!');
+
+    try {
+      const response = await fetch('/api/subscriptions/cancel', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to cancel subscription');
+        return;
+      }
+
+      toast.success('Subscription canceled. You will retain access until the end of your billing period.');
+      // Reload subscription data
+      const subData = await getUserSubscription();
+      const tier = await getUserSubscriptionTier();
+      setSubscription(subData);
+      setCurrentTier(tier);
+    } catch (error) {
+      console.error('Error canceling subscription:', error);
+      toast.error('An error occurred. Please try again.');
+    }
   };
 
   const handleExportData = async () => {
