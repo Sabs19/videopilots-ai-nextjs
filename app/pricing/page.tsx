@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { SubscriptionPlan } from '@/types/subscription';
 import { getUserSubscriptionTier } from '@/lib/services/subscription';
 import { toast } from 'sonner';
 
-export default function PricingPage() {
+function PricingContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -360,6 +360,25 @@ export default function PricingPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-12">
+        <div className="animate-pulse space-y-6">
+          <div className="h-8 bg-muted rounded w-1/3 mx-auto" />
+          <div className="grid md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-96 bg-muted rounded" />
+            ))}
+          </div>
+        </div>
+      </div>
+    }>
+      <PricingContent />
+    </Suspense>
   );
 }
 
