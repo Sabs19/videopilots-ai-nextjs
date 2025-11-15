@@ -10,15 +10,25 @@ const isProduction = process.env.NODE_ENV === 'production';
 const connectionString = process.env.DATABASE_URL;
 const requiresSSL = connectionString?.includes('sslmode=require') || isProduction;
 
+// Build pool configuration
 const poolConfig: PoolConfig = {
   connectionString: connectionString,
-  // If connection string explicitly requires SSL, or we're in production, use SSL
-  ssl: requiresSSL ? { rejectUnauthorized: false } : false,
   // Connection pool settings for production
   max: isProduction ? 20 : 10, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection cannot be established
 };
+
+// SSL configuration - handle self-signed certificates and certificate chain issues
+// When SSL is required, configure with relaxed certificate verification
+// This must be set AFTER connectionString to override any SSL settings in the connection string
+if (requiresSSL) {
+  poolConfig.ssl = {
+    rejectUnauthorized: false, // Accept self-signed certificates and bypass certificate chain verification
+  };
+} else {
+  poolConfig.ssl = false;
+}
 
 // Log connection details in production (without sensitive info)
 if (isProduction) {
@@ -51,7 +61,7 @@ pool.on('error', (err: Error) => {
   
   // Don't exit in production - let the application handle it gracefully
   if (!isProduction) {
-    process.exit(-1);
+  process.exit(-1);
   }
 });
 
