@@ -102,32 +102,21 @@ async function downgradeUserToFree() {
       );
       console.log(`✅ Updated user_profiles.subscription_tier to '${subscriptionTier}'`);
       
-      // Update user_subscriptions to canceled/expired status
+      // Delete user_subscriptions record (free tier doesn't need a subscription record)
       const subscriptionCheck = await client.query(
         'SELECT id FROM user_subscriptions WHERE user_id = $1',
         [user.id]
       );
       
       if (subscriptionCheck.rows.length > 0) {
-        // Update existing subscription to canceled
+        // Delete the subscription record since free tier doesn't need it
         await client.query(
-          `UPDATE user_subscriptions 
-           SET plan_id = $1, status = 'canceled', 
-               cancel_at_period_end = true,
-               updated_at = NOW()
-           WHERE user_id = $2`,
-          [planId, user.id]
+          'DELETE FROM user_subscriptions WHERE user_id = $1',
+          [user.id]
         );
-        console.log(`✅ Updated user_subscriptions to 'canceled' status`);
+        console.log(`✅ Deleted user_subscriptions record (free tier doesn't need subscription)`);
       } else {
-        // Create a canceled subscription record for tracking
-        await client.query(
-          `INSERT INTO user_subscriptions 
-           (user_id, plan_id, status, cancel_at_period_end, created_at, updated_at)
-           VALUES ($1, $2, 'canceled', true, NOW(), NOW())`,
-          [user.id, planId]
-        );
-        console.log(`✅ Created user_subscriptions record with 'canceled' status`);
+        console.log(`✅ No subscription record found (user is already on free tier)`);
       }
       
       // Commit transaction
