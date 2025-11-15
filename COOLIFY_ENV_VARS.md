@@ -57,17 +57,42 @@ NODE_ENV=production
 
 ### PayPal (if using PayPal integration)
 
+**For Testing (Sandbox Mode - Recommended):**
+
+1. Go to [PayPal Developer Dashboard](https://developer.paypal.com/)
+2. Log in with your PayPal account
+3. Navigate to **Dashboard** → **Sandbox** → **Accounts**
+4. Create test accounts (Personal and Business) if needed
+5. Go to **My Apps & Credentials** → **Sandbox** tab
+6. Create a new app or use the default app
+7. Copy the **Client ID** and **Secret**
+
+Set these environment variables:
 ```
-NEXT_PUBLIC_PAYPAL_CLIENT_ID=your-paypal-client-id
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=your-sandbox-client-id
+PAYPAL_CLIENT_SECRET=your-sandbox-client-secret
+PAYPAL_MODE=sandbox
 ```
 
-- **Why both buildtime & runtime:** NEXT*PUBLIC* prefix means it must be available at build time
+**For Production:**
 
+1. In PayPal Developer Dashboard, switch to **Live** tab
+2. Create a new app or use existing app
+3. Copy the **Client ID** and **Secret**
+
+Set these environment variables:
 ```
-PAYPAL_CLIENT_SECRET=your-paypal-client-secret
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=your-live-client-id
+PAYPAL_CLIENT_SECRET=your-live-client-secret
+PAYPAL_MODE=production
 ```
 
-- **Why both buildtime & runtime:** Used in server-side PayPal API calls
+**Notes:**
+- **Default behavior:** If `PAYPAL_MODE` is not set or not equal to `'production'`, the app uses **sandbox mode** automatically
+- **Why both buildtime & runtime:** 
+  - `NEXT_PUBLIC_PAYPAL_CLIENT_ID` must be available at build time (embedded in client bundle)
+  - `PAYPAL_CLIENT_SECRET` is used server-side only but should be available at both times for consistency
+- **Testing:** Use sandbox test accounts to test payments without real money. PayPal provides test buyer accounts with fake credit cards.
 
 ## Summary
 
