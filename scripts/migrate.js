@@ -23,6 +23,12 @@ if (!process.env.DATABASE_URL) {
 const isProduction = process.env.NODE_ENV === 'production';
 const connectionString = process.env.DATABASE_URL;
 
+// Debug: Show masked connection string
+if (connectionString) {
+  const maskedUrl = connectionString.replace(/:[^:@]+@/, ':****@');
+  console.log('🔍 DATABASE_URL (masked):', maskedUrl);
+}
+
 // Parse connection string to extract connection parameters
 // This gives us better control over SSL settings
 let url;
@@ -54,6 +60,16 @@ const poolConfig = {
 const pool = new Pool(poolConfig);
 
 async function migrate() {
+  // Debug: Show connection details (without password)
+  console.log('🔍 Connection Details:');
+  console.log('   Host:', poolConfig.host);
+  console.log('   Port:', poolConfig.port);
+  console.log('   Database:', poolConfig.database);
+  console.log('   Username:', poolConfig.user);
+  console.log('   Password:', poolConfig.password ? '***' + poolConfig.password.slice(-4) : 'not set');
+  console.log('   SSL:', requiresSSL ? 'enabled (rejectUnauthorized: false)' : 'disabled');
+  console.log('');
+  
   const client = await pool.connect();
   
   try {
@@ -95,7 +111,29 @@ async function migrate() {
     
   } catch (error) {
     console.error('❌ Migration failed:', error.message);
-    console.error(error);
+    
+    // Provide helpful troubleshooting for password authentication errors
+    if (error.code === '28P01' || error.message.includes('password authentication failed')) {
+      console.error('\n🔐 Password Authentication Failed');
+      console.error('   This means the username or password in DATABASE_URL is incorrect.');
+      console.error('\n💡 To fix this:');
+      console.error('   1. Go to your PostgreSQL service in Coolify');
+      console.error('   2. Check the actual username and password');
+      console.error('   3. Verify the connection string matches exactly');
+      console.error('   4. If password has special characters, they may need URL encoding:');
+      console.error('      - @ → %40');
+      console.error('      - # → %23');
+      console.error('      - % → %25');
+      console.error('      - & → %26');
+      console.error('   5. Update DATABASE_URL in your app\'s environment variables');
+      console.error('   6. Ensure both "Available at Buildtime" and "Available at Runtime" are enabled');
+      console.error('\n📝 Current connection details:');
+      console.error('   Username:', poolConfig.user);
+      console.error('   Host:', poolConfig.host);
+      console.error('   Database:', poolConfig.database);
+    }
+    
+    console.error('\nFull error:', error);
     process.exit(1);
   } finally {
     client.release();
