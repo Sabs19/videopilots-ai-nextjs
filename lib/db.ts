@@ -11,24 +11,20 @@ const connectionString = process.env.DATABASE_URL;
 const requiresSSL = connectionString?.includes('sslmode=require') || isProduction;
 
 // Build pool configuration
+// Note: We set SSL explicitly in poolConfig to override connection string SSL settings
+// This ensures rejectUnauthorized: false is properly applied for self-signed certificates
 const poolConfig: PoolConfig = {
   connectionString: connectionString,
+  // SSL configuration - MUST be set to handle self-signed certificates
+  // Setting this explicitly overrides any SSL settings in the connection string
+  ssl: requiresSSL ? {
+    rejectUnauthorized: false, // Accept self-signed certificates and bypass certificate chain verification
+  } : false,
   // Connection pool settings for production
   max: isProduction ? 20 : 10, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
   connectionTimeoutMillis: 10000, // Return an error after 10 seconds if connection cannot be established
 };
-
-// SSL configuration - handle self-signed certificates and certificate chain issues
-// When SSL is required, configure with relaxed certificate verification
-// This must be set AFTER connectionString to override any SSL settings in the connection string
-if (requiresSSL) {
-  poolConfig.ssl = {
-    rejectUnauthorized: false, // Accept self-signed certificates and bypass certificate chain verification
-  };
-} else {
-  poolConfig.ssl = false;
-}
 
 // Log connection details in production (without sensitive info)
 if (isProduction) {
@@ -37,6 +33,8 @@ if (isProduction) {
     host: connectionString ? new URL(connectionString.replace(/^postgres:/, 'postgresql:')).hostname : 'unknown',
     ssl: requiresSSL || isProduction,
     sslMode: requiresSSL ? 'require' : 'default',
+    sslConfig: poolConfig.ssl,
+    rejectUnauthorized: poolConfig.ssl && typeof poolConfig.ssl === 'object' ? poolConfig.ssl.rejectUnauthorized : 'N/A',
   });
 }
 
