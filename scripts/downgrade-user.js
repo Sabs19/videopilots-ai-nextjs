@@ -80,7 +80,7 @@ async function downgradeUserToFree() {
     
     if (subscriptionCheck.rows.length > 0) {
       console.log(`⚠️  Found ${subscriptionCheck.rows.length} subscription record(s) that will be deleted:`);
-      subscriptionCheck.rows.forEach((sub: any) => {
+      subscriptionCheck.rows.forEach((sub) => {
         console.log(`   - Subscription ID: ${sub.id}, Status: ${sub.status}, Plan ID: ${sub.plan_id}`);
       });
     }
