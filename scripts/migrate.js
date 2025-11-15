@@ -20,10 +20,38 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
+const isProduction = process.env.NODE_ENV === 'production';
+const connectionString = process.env.DATABASE_URL;
+
+// Parse connection string to extract connection parameters
+// This gives us better control over SSL settings
+let url;
+try {
+  // Convert postgres:// to postgresql:// for URL parsing
+  url = new URL(connectionString.replace(/^postgres:/, 'postgresql:'));
+} catch (error) {
+  console.error('❌ Invalid DATABASE_URL format:', error.message);
+  process.exit(1);
+}
+
+const requiresSSL = connectionString?.includes('sslmode=require') || isProduction;
+
+// Build pool configuration using individual parameters for better SSL control
+// Using individual parameters instead of connectionString gives us full control over SSL settings
+const poolConfig = {
+  host: url.hostname,
+  port: parseInt(url.port || '5432', 10),
+  database: url.pathname.slice(1) || 'postgres', // Remove leading slash
+  user: url.username,
+  password: url.password,
+  // SSL configuration - Use individual SSL config to bypass certificate verification
+  // This approach ensures rejectUnauthorized: false is properly applied
+  ssl: requiresSSL ? {
+    rejectUnauthorized: false, // Accept self-signed certificates and bypass certificate chain verification
+  } : false,
+};
+
+const pool = new Pool(poolConfig);
 
 async function migrate() {
   const client = await pool.connect();
