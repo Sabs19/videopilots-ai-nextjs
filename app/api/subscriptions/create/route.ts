@@ -69,11 +69,59 @@ export async function POST(request: NextRequest) {
     }
 
     const plan = planResult.rows[0];
-    const amount = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+    const rawAmount = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
+    
+    // Validate amount
+    if (!rawAmount || rawAmount <= 0) {
+      return NextResponse.json(
+        { error: "Invalid subscription amount" },
+        { status: 400 }
+      );
+    }
+
+    // Format amount to exactly 2 decimal places (PayPal requirement)
+    const amount = parseFloat(rawAmount.toString()).toFixed(2);
     const currency = 'USD';
 
     // Get PayPal access token
     const accessToken = await getPayPalAccessToken();
+
+    // Validate AUTH_URL is set
+    if (!process.env.AUTH_URL) {
+      return NextResponse.json(
+        { error: "AUTH_URL not configured" },
+        { status: 500 }
+      );
+    }
+
+    // Build PayPal order payload
+    const orderPayload = {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        reference_id: `subscription-${planName}-${billingPeriod}`,
+        description: `${planName.charAt(0).toUpperCase() + planName.slice(1)} Plan - ${billingPeriod === 'monthly' ? 'Monthly' : 'Yearly'}`,
+        amount: {
+          currency_code: currency,
+          value: amount, // Already formatted to 2 decimal places
+        },
+      }],
+      application_context: {
+        brand_name: 'VideoPilots AI',
+        landing_page: 'BILLING',
+        user_action: 'PAY_NOW',
+        return_url: `${process.env.AUTH_URL}/pricing?success=true`,
+        cancel_url: `${process.env.AUTH_URL}/pricing?canceled=true`,
+      },
+    };
+
+    // Log order payload for debugging (without sensitive data)
+    console.log('Creating PayPal order:', {
+      planName,
+      billingPeriod,
+      amount,
+      currency,
+      return_url: orderPayload.application_context.return_url,
+    });
 
     // Create PayPal order
     const orderResponse = await fetch(`${PAYPAL_API_BASE}/v2/checkout/orders`, {
@@ -83,32 +131,38 @@ export async function POST(request: NextRequest) {
         'Content-Type': 'application/json',
         'PayPal-Request-Id': `subscription-${session.user.id}-${Date.now()}`,
       },
-      body: JSON.stringify({
-        intent: 'CAPTURE',
-        purchase_units: [{
-          reference_id: `subscription-${planName}-${billingPeriod}`,
-          description: `${planName.charAt(0).toUpperCase() + planName.slice(1)} Plan - ${billingPeriod === 'monthly' ? 'Monthly' : 'Yearly'}`,
-          amount: {
-            currency_code: currency,
-            value: amount.toString(),
-          },
-        }],
-        application_context: {
-          brand_name: 'VideoPilots AI',
-          landing_page: 'BILLING',
-          user_action: 'PAY_NOW',
-          return_url: `${process.env.AUTH_URL}/pricing?success=true`,
-          cancel_url: `${process.env.AUTH_URL}/pricing?canceled=true`,
-        },
-      }),
+      body: JSON.stringify(orderPayload),
     });
 
     if (!orderResponse.ok) {
-      const error = await orderResponse.text();
-      console.error('PayPal order creation failed:', error);
+      const errorText = await orderResponse.text();
+      let errorData;
+      try {
+        errorData = JSON.parse(errorText);
+      } catch {
+        errorData = { message: errorText };
+      }
+      
+      console.error('PayPal order creation failed:', {
+        status: orderResponse.status,
+        statusText: orderResponse.statusText,
+        error: errorData,
+        orderPayload: {
+          amount,
+          currency,
+          planName,
+          billingPeriod,
+        },
+      });
+      
+      // Return more specific error message
+      const errorMessage = errorData?.details?.[0]?.description || 
+                          errorData?.message || 
+                          'Failed to create PayPal order';
+      
       return NextResponse.json(
-        { error: "Failed to create PayPal order" },
-        { status: 500 }
+        { error: errorMessage },
+        { status: orderResponse.status || 500 }
       );
     }
 
