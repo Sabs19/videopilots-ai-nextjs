@@ -20,23 +20,46 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-});
+const isProduction = process.env.NODE_ENV === 'production';
+const connectionString = process.env.DATABASE_URL;
+
+// Parse connection string to extract connection parameters for better SSL control
+let url;
+try {
+  url = new URL(connectionString.replace(/^postgres:/, 'postgresql:'));
+} catch (error) {
+  console.error('❌ Invalid DATABASE_URL format:', error.message);
+  process.exit(1);
+}
+
+const requiresSSL = connectionString?.includes('sslmode=require') || connectionString?.includes('sslmode=prefer');
+
+const poolConfig = {
+  host: url.hostname,
+  port: parseInt(url.port || '5432', 10),
+  database: url.pathname.slice(1) || 'postgres',
+  user: url.username,
+  password: url.password,
+  ssl: requiresSSL ? {
+    rejectUnauthorized: false,
+  } : false,
+};
+
+const pool = new Pool(poolConfig);
 
 async function upgradeUserToPremium() {
   const client = await pool.connect();
   
   try {
-    const email = 'sgsabariganesh@gmail.com';
+    // Get email from command line argument or use default
+    const email = process.argv[2] || 'sgsabariganesh@gmail.com';
     const subscriptionTier = 'pro'; // 'pro' for premium
     
     console.log(`\n🔍 Looking for user: ${email}`);
     
-    // Find the user
+    // Find the user (case-insensitive email matching)
     const userResult = await client.query(
-      'SELECT id, email, subscription_tier FROM user_profiles WHERE email = $1',
+      'SELECT id, email, subscription_tier FROM user_profiles WHERE LOWER(email) = LOWER($1)',
       [email]
     );
     
