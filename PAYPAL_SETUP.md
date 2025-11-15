@@ -26,17 +26,25 @@
 5. Click **Create App**
 6. You'll see your **Client ID** and **Secret** - copy these!
 
-### Step 3: Create Test Accounts (Optional)
+### Step 3: Create Test Buyer Account (REQUIRED)
 
-PayPal provides default test accounts, but you can create custom ones:
+**IMPORTANT:** You cannot use the same account that created the app (seller account) to make purchases. You need a separate **buyer test account**.
 
 1. Go to **Dashboard** → **Sandbox** → **Accounts**
 2. Click **Create Account**
-3. Choose account type:
-   - **Personal** - For testing buyer experience
-   - **Business** - For testing merchant experience
-4. Fill in the details (use fake info, it's just for testing)
-5. Note the email and password - you'll use these to test payments
+3. Choose account type: **Personal** (for testing buyer experience)
+4. Fill in the details:
+   - **Email**: Use a fake email (e.g., `buyer-test@example.com`)
+   - **Password**: Create a password you'll remember
+   - **Name**: Any name (e.g., "Test Buyer")
+   - **Country**: Your country
+5. Click **Create Account**
+6. **IMPORTANT:** Note the email and password - you'll use this account to test payments
+
+**Why this is needed:**
+- Your app credentials are associated with a **seller/merchant** account
+- PayPal doesn't allow the seller to buy from themselves
+- You need a separate **buyer** account to test the payment flow
 
 ### Step 4: Configure Environment Variables
 
@@ -59,9 +67,14 @@ PAYPAL_MODE=sandbox
 2. Go to the pricing page
 3. Click "Upgrade" on a plan
 4. You'll be redirected to PayPal sandbox
-5. Log in with a **sandbox test account** (not your real PayPal account!)
+5. **CRITICAL:** Log in with the **buyer test account** you created in Step 3
+   - **DO NOT** use the account that created the app (seller account)
+   - **DO NOT** use your real PayPal account
+   - Use the **Personal** test account you created
 6. Complete the payment flow
 7. You should be redirected back to your app
+
+**Common Error:** If you see "You are logging in to the account of the seller for this purchase", you're using the wrong account. Create a separate buyer test account.
 
 ## Testing Different Scenarios
 
@@ -96,6 +109,21 @@ When you're ready to go live:
 
 ## Troubleshooting
 
+### "You are logging in to the account of the seller for this purchase"
+**This is the most common error!**
+
+**Problem:** You're trying to use the same account that created the app (seller/merchant) to make a purchase.
+
+**Solution:**
+1. Go to PayPal Developer Dashboard → **Sandbox** → **Accounts**
+2. Create a new **Personal** test account (buyer account)
+3. Use this **buyer account** to log in when testing payments
+4. **Never** use the seller account to make purchases
+
+**Remember:** 
+- **Seller account** = The account that created the app (used for app credentials)
+- **Buyer account** = Separate test account you create (used to test payments)
+
 ### "PayPal credentials not configured"
 - Check that `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` are set
 - Make sure they're available at both buildtime and runtime
@@ -112,15 +140,34 @@ When you're ready to go live:
 
 ## Sandbox Test Accounts
 
-PayPal provides default test accounts, but you can also create custom ones:
+### Understanding Account Types
 
-**Default Personal Account:**
-- Email: `sb-xxxxx@personal.example.com` (check your dashboard)
-- Password: (set when creating account)
+**Seller/Merchant Account:**
+- The account that created your PayPal app
+- Used for app credentials (Client ID, Secret)
+- **CANNOT** be used to make purchases (PayPal prevents this)
 
-**Default Business Account:**
-- Email: `sb-xxxxx@business.example.com` (check your dashboard)
-- Password: (set when creating account)
+**Buyer Account:**
+- A separate **Personal** test account you create
+- Used to test the payment flow
+- **MUST** be different from the seller account
+
+### Creating Your Buyer Account
+
+1. Go to **Dashboard** → **Sandbox** → **Accounts**
+2. Click **Create Account**
+3. Select **Personal** account type
+4. Fill in details (fake info is fine)
+5. Save the email and password
+
+### Using Default Test Accounts
+
+PayPal may provide default test accounts, but it's better to create your own:
+
+**To use default accounts:**
+- Check your dashboard for default account emails
+- These are usually `sb-xxxxx@personal.example.com` or `sb-xxxxx@business.example.com`
+- **Important:** Make sure you're using a **Personal** account (buyer), not the Business account (seller)
 
 **Note:** Use these test accounts ONLY in the PayPal sandbox environment, never in production!
 
