@@ -23,8 +23,10 @@
 2. Make sure you're on the **Sandbox** tab (not Live)
 3. Under **REST API apps**, click **Create App**
 4. Give it a name (e.g., "VideoPilots AI - Sandbox")
-5. Click **Create App**
-6. You'll see your **Client ID** and **Secret** - copy these!
+5. **Note:** The app will be associated with a Business test account (this is your seller/merchant account)
+6. Click **Create App**
+7. You'll see your **Client ID** and **Secret** - copy these!
+8. **Important:** Note which Business account this app is associated with - you CANNOT use this account to make purchases!
 
 ### Step 3: Create Test Buyer Account (REQUIRED)
 
@@ -112,17 +114,40 @@ When you're ready to go live:
 ### "You are logging in to the account of the seller for this purchase"
 **This is the most common error!**
 
-**Problem:** You're trying to use the same account that created the app (seller/merchant) to make a purchase.
+**Problem:** You're trying to use the same account that the PayPal app is associated with (seller/merchant) to make a purchase. PayPal prevents sellers from buying from themselves.
 
 **Solution:**
-1. Go to PayPal Developer Dashboard → **Sandbox** → **Accounts**
-2. Create a new **Personal** test account (buyer account)
-3. Use this **buyer account** to log in when testing payments
-4. **Never** use the seller account to make purchases
+
+1. **Identify the seller account:**
+   - Go to PayPal Developer Dashboard → **My Apps & Credentials** → **Sandbox** tab
+   - Look at your app - it's associated with a Business test account (this is the seller)
+   - Note which account this is (usually shown in the app details)
+
+2. **Create a separate buyer account:**
+   - Go to **Dashboard** → **Sandbox** → **Accounts**
+   - Click **Create Account**
+   - Choose **Personal** account type (NOT Business)
+   - Fill in details:
+     - Email: Use a completely different email (e.g., `buyer-test@example.com`)
+     - Password: Create a new password
+     - Name: "Test Buyer" or similar
+   - Click **Create Account**
+
+3. **Use ONLY the buyer account for payments:**
+   - When redirected to PayPal, log in with the **Personal** buyer account
+   - **NEVER** use the Business account associated with your app
+   - **NEVER** use your real PayPal account in sandbox
+
+4. **If error persists:**
+   - Make sure you're using a **Personal** account, not Business
+   - Verify the buyer account email is completely different from the seller account
+   - Try creating a fresh buyer account
+   - Clear browser cookies/cache and try again
 
 **Remember:** 
-- **Seller account** = The account that created the app (used for app credentials)
-- **Buyer account** = Separate test account you create (used to test payments)
+- **Seller account** = The Business account your app is associated with (used for app credentials)
+- **Buyer account** = A separate **Personal** test account you create (used to test payments)
+- These **MUST** be different accounts!
 
 ### "PayPal credentials not configured"
 - Check that `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET` are set
