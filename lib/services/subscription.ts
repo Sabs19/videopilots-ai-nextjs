@@ -23,7 +23,12 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
  */
 export async function getUserSubscription(): Promise<UserSubscription | null> {
   try {
-    const response = await fetch('/api/subscriptions/user');
+    const response = await fetch('/api/subscriptions/user', {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
     if (!response.ok) {
       return null;
     }
@@ -41,7 +46,12 @@ export async function getUserSubscription(): Promise<UserSubscription | null> {
  */
 export async function getUserSubscriptionTier(): Promise<SubscriptionTier> {
   try {
-    const response = await fetch('/api/subscriptions/user');
+    const response = await fetch('/api/subscriptions/user', {
+      cache: 'no-store',
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
+    });
     if (!response.ok) {
       // If no subscription, check user profile for default tier
       return 'free';

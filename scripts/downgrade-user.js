@@ -72,51 +72,44 @@ async function downgradeUserToFree() {
     console.log(`✅ Found user: ${user.email} (ID: ${user.id})`);
     console.log(`   Current subscription tier: ${user.subscription_tier}`);
     
-    if (user.subscription_tier === 'free') {
-      console.log(`\n⚠️  User is already on the free tier.`);
-      process.exit(0);
-    }
-    
-    // Get the 'free' plan ID
-    const planResult = await client.query(
-      'SELECT id FROM subscription_plans WHERE name = $1',
-      [subscriptionTier]
+    // Check for existing subscription records first
+    const subscriptionCheck = await client.query(
+      'SELECT id, status, plan_id FROM user_subscriptions WHERE user_id = $1',
+      [user.id]
     );
     
-    if (planResult.rows.length === 0) {
-      console.error(`❌ Subscription plan '${subscriptionTier}' not found!`);
-      process.exit(1);
+    if (subscriptionCheck.rows.length > 0) {
+      console.log(`⚠️  Found ${subscriptionCheck.rows.length} subscription record(s) that will be deleted:`);
+      subscriptionCheck.rows.forEach((sub: any) => {
+        console.log(`   - Subscription ID: ${sub.id}, Status: ${sub.status}, Plan ID: ${sub.plan_id}`);
+      });
     }
     
-    const planId = planResult.rows[0].id;
-    console.log(`✅ Found plan: ${subscriptionTier} (ID: ${planId})`);
+    if (user.subscription_tier === 'free' && subscriptionCheck.rows.length === 0) {
+      console.log(`\n✅ User is already on the free tier with no subscription records.`);
+      process.exit(0);
+    }
     
     // Start transaction
     await client.query('BEGIN');
     
     try {
-      // Update user_profiles subscription_tier
+      // Update user_profiles subscription_tier (even if already free, to ensure consistency)
       await client.query(
         'UPDATE user_profiles SET subscription_tier = $1, updated_at = NOW() WHERE id = $2',
         [subscriptionTier, user.id]
       );
       console.log(`✅ Updated user_profiles.subscription_tier to '${subscriptionTier}'`);
       
-      // Delete user_subscriptions record (free tier doesn't need a subscription record)
-      const subscriptionCheck = await client.query(
-        'SELECT id FROM user_subscriptions WHERE user_id = $1',
-        [user.id]
-      );
-      
+      // Always delete user_subscriptions records (free tier doesn't need subscription records)
       if (subscriptionCheck.rows.length > 0) {
-        // Delete the subscription record since free tier doesn't need it
         await client.query(
           'DELETE FROM user_subscriptions WHERE user_id = $1',
           [user.id]
         );
-        console.log(`✅ Deleted user_subscriptions record (free tier doesn't need subscription)`);
+        console.log(`✅ Deleted ${subscriptionCheck.rows.length} user_subscriptions record(s)`);
       } else {
-        console.log(`✅ No subscription record found (user is already on free tier)`);
+        console.log(`✅ No subscription records to delete`);
       }
       
       // Commit transaction
