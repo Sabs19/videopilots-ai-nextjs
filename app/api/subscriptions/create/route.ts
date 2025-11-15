@@ -179,18 +179,8 @@ export async function POST(request: NextRequest) {
 
     const orderData = await orderResponse.json();
 
-    // Store order reference in database (for tracking and verification)
-    await pool.query(
-      `INSERT INTO user_subscriptions (user_id, plan_id, status, paypal_order_id, created_at, updated_at)
-       VALUES ($1, $2, 'trialing', $3, NOW(), NOW())
-       ON CONFLICT (user_id) 
-       DO UPDATE SET 
-         plan_id = EXCLUDED.plan_id,
-         paypal_order_id = EXCLUDED.paypal_order_id,
-         status = 'trialing',
-         updated_at = NOW()`,
-      [session.user.id, plan.id, orderData.id]
-    );
+    // Don't store order in database yet - only store after successful payment verification
+    // This prevents showing "trialing" status for orders that are never completed
 
     const approvalUrl = orderData.links?.find((link: any) => link.rel === 'approve')?.href;
     
