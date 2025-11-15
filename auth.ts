@@ -30,18 +30,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
+          console.error('[Auth] Missing credentials');
           return null;
         }
 
         try {
+          // Use case-insensitive email matching to handle email case variations
           const result = await pool.query(
-            'SELECT id, email, name, image, password FROM user_profiles WHERE email = $1',
-            [credentials.email]
+            'SELECT id, email, name, image, password FROM user_profiles WHERE LOWER(email) = LOWER($1)',
+            [credentials.email as string]
           );
 
           const user = result.rows[0];
 
-          if (!user || !user.password) {
+          if (!user) {
+            console.error(`[Auth] User not found: ${credentials.email}`);
+            return null;
+          }
+
+          if (!user.password) {
+            console.error(`[Auth] User has no password: ${user.email}`);
             return null;
           }
 
@@ -51,9 +59,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           );
 
           if (!isValid) {
+            console.error(`[Auth] Invalid password for: ${user.email}`);
             return null;
           }
 
+          console.log(`[Auth] Successful login: ${user.email}`);
           return {
             id: user.id,
             email: user.email,
@@ -61,7 +71,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             image: user.image,
           };
         } catch (error) {
-          console.error('Auth error:', error);
+          console.error('[Auth] Error during authorization:', error);
           return null;
         }
       },

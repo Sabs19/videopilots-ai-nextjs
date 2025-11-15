@@ -46,11 +46,28 @@ export async function GET() {
     health.database = "error";
     health.responseTime = Date.now() - startTime;
     
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const errorCode = (error as any)?.code;
+    
     logger.error("Health check failed", error, {
       responseTime: health.responseTime,
+      errorMessage,
+      errorCode,
     });
     
-    return NextResponse.json(health, { 
+    // Include error details in response (safe for debugging in production)
+    const healthResponse = {
+      ...health,
+      error: {
+        message: errorMessage,
+        code: errorCode,
+      },
+      databaseUrl: process.env.DATABASE_URL 
+        ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') 
+        : 'not set',
+    };
+    
+    return NextResponse.json(healthResponse, { 
       status: 503,
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",
