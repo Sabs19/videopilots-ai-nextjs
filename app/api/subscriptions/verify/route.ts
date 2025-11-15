@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
     // Get PayPal access token
     const accessToken = await getPayPalAccessToken();
 
-    // Capture the order
-    const captureResponse = await fetch(
-      `${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`,
+    // First, check the order status before attempting to capture
+    const orderCheckResponse = await fetch(
+      `${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}`,
       {
-        method: 'POST',
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json',
@@ -68,22 +68,101 @@ export async function POST(request: NextRequest) {
       }
     );
 
-    if (!captureResponse.ok) {
-      const error = await captureResponse.text();
-      console.error('PayPal capture failed:', error);
+    if (!orderCheckResponse.ok) {
+      const error = await orderCheckResponse.text();
+      console.error('PayPal order check failed:', error);
       return NextResponse.json(
-        { error: "Payment verification failed" },
+        { error: "Order not found or invalid" },
         { status: 400 }
       );
     }
 
-    const captureData = await captureResponse.json();
+    const orderData = await orderCheckResponse.json();
 
-    if (captureData.status !== 'COMPLETED') {
+    // Only proceed if order is APPROVED (ready to capture)
+    // If order is already COMPLETED, that's fine too
+    // But if it's CREATED, CANCELED, or other status, don't capture
+    if (orderData.status === 'CREATED') {
+      // Order exists but hasn't been approved by user
       return NextResponse.json(
-        { error: "Payment not completed" },
+        { error: "Payment not approved by user" },
         { status: 400 }
       );
+    }
+
+    if (orderData.status === 'CANCELED' || orderData.status === 'VOIDED') {
+      return NextResponse.json(
+        { error: "Payment was canceled" },
+        { status: 400 }
+      );
+    }
+
+    // If already completed, verify it's for the correct user
+    if (orderData.status === 'COMPLETED') {
+      // Verify this order belongs to the current user by checking database
+      const existingOrder = await pool.query(
+        'SELECT user_id FROM user_subscriptions WHERE paypal_order_id = $1',
+        [orderId]
+      );
+
+      if (existingOrder.rows.length > 0 && existingOrder.rows[0].user_id !== session.user.id) {
+        return NextResponse.json(
+          { error: "Order does not belong to current user" },
+          { status: 403 }
+        );
+      }
+
+      // Order already completed, return success without capturing again
+      if (existingOrder.rows.length > 0) {
+        return NextResponse.json({
+          success: true,
+          message: "Payment already processed",
+        });
+      }
+    }
+
+    // Only capture if order is APPROVED
+    if (orderData.status !== 'APPROVED' && orderData.status !== 'COMPLETED') {
+      return NextResponse.json(
+        { error: `Payment not ready. Status: ${orderData.status}` },
+        { status: 400 }
+      );
+    }
+
+    // Capture the order (only if not already completed)
+    let captureData;
+    if (orderData.status === 'APPROVED') {
+      const captureResponse = await fetch(
+        `${PAYPAL_API_BASE}/v2/checkout/orders/${orderId}/capture`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!captureResponse.ok) {
+        const error = await captureResponse.text();
+        console.error('PayPal capture failed:', error);
+        return NextResponse.json(
+          { error: "Payment capture failed" },
+          { status: 400 }
+        );
+      }
+
+      captureData = await captureResponse.json();
+
+      if (captureData.status !== 'COMPLETED') {
+        return NextResponse.json(
+          { error: "Payment not completed" },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Order already completed, use existing order data
+      captureData = orderData;
     }
 
     // Get the purchase unit to extract plan info

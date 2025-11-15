@@ -72,7 +72,8 @@ export async function POST(request: NextRequest) {
     const rawAmount = billingPeriod === 'monthly' ? plan.price_monthly : plan.price_yearly;
     
     // Validate amount
-    if (!rawAmount || rawAmount <= 0) {
+    if (!rawAmount || rawAmount <= 0 || isNaN(Number(rawAmount))) {
+      console.error('Invalid amount:', { rawAmount, planName, billingPeriod });
       return NextResponse.json(
         { error: "Invalid subscription amount" },
         { status: 400 }
@@ -81,6 +82,16 @@ export async function POST(request: NextRequest) {
 
     // Format amount to exactly 2 decimal places (PayPal requirement)
     const amount = parseFloat(rawAmount.toString()).toFixed(2);
+    
+    // Validate formatted amount
+    if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+      console.error('Invalid formatted amount:', { amount, rawAmount });
+      return NextResponse.json(
+        { error: "Invalid subscription amount format" },
+        { status: 400 }
+      );
+    }
+    
     const currency = 'USD';
 
     // Get PayPal access token

@@ -32,24 +32,26 @@ function PricingContent() {
     const token = searchParams.get('token');
     const success = searchParams.get('success');
     const canceled = searchParams.get('canceled');
+    const payerId = searchParams.get('PayerID');
+
+    // Clear any stored order ID first
+    sessionStorage.removeItem('paypal_order_id');
 
     if (canceled) {
       toast.info('Payment canceled');
-      sessionStorage.removeItem('paypal_order_id');
       router.replace('/pricing');
       return;
     }
 
-    if (success) {
-      // Get order ID from URL token or sessionStorage
-      const orderId = token || sessionStorage.getItem('paypal_order_id');
-      if (orderId) {
-        verifyPayment(orderId);
-        sessionStorage.removeItem('paypal_order_id');
-      } else {
-        toast.error('Payment verification failed: Order ID not found');
-        router.replace('/pricing');
-      }
+    // Only verify if we have both success=true AND a token
+    // PayPal returns token only when payment is actually approved
+    if (success && token) {
+      // Verify the payment
+      verifyPayment(token);
+    } else if (success && !token) {
+      // Success param but no token means user returned without completing payment
+      toast.info('Payment was not completed');
+      router.replace('/pricing');
     }
   }, [searchParams, router]);
 
