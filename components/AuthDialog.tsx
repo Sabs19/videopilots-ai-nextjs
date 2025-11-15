@@ -42,13 +42,20 @@ export function AuthDialog({ open, onOpenChange, trigger }: AuthDialogProps) {
       });
 
       if (result?.error) {
-        toast.error('Invalid email or password');
-      } else {
+        console.error('Sign in error:', result.error);
+        toast.error(result.error === 'CredentialsSignin' 
+          ? 'Invalid email or password' 
+          : `Sign in failed: ${result.error}`);
+      } else if (result?.ok) {
         toast.success('Signed in successfully');
         onOpenChange?.(false);
         router.refresh();
+      } else {
+        console.error('Unexpected sign in result:', result);
+        toast.error('Sign in failed. Please try again.');
       }
     } catch (error) {
+      console.error('Sign in exception:', error);
       toast.error('An error occurred. Please try again.');
     } finally {
       setIsLoading(false);
