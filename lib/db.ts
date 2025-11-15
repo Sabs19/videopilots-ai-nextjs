@@ -17,7 +17,9 @@ try {
   throw new Error(`Invalid DATABASE_URL format: ${error instanceof Error ? error.message : String(error)}`);
 }
 
-const requiresSSL = connectionString?.includes('sslmode=require') || isProduction;
+// Only enable SSL if explicitly required in connection string
+// Don't force SSL just because it's production - let the connection string decide
+const requiresSSL = connectionString?.includes('sslmode=require') || connectionString?.includes('sslmode=prefer');
 
 // Build pool configuration using individual parameters for better SSL control
 // Using individual parameters instead of connectionString gives us full control over SSL settings
@@ -45,8 +47,8 @@ if (isProduction) {
     port: poolConfig.port,
     database: poolConfig.database,
     user: poolConfig.user,
-    ssl: requiresSSL || isProduction,
-    sslMode: requiresSSL ? 'require' : 'default',
+    ssl: requiresSSL,
+    sslMode: requiresSSL ? 'require' : 'disabled',
     sslConfig: poolConfig.ssl,
     rejectUnauthorized: poolConfig.ssl && typeof poolConfig.ssl === 'object' ? poolConfig.ssl.rejectUnauthorized : 'N/A',
     connectionMethod: 'individual_parameters', // Using individual params instead of connectionString
