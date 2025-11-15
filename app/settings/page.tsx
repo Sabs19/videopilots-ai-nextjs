@@ -98,7 +98,7 @@ export default function SettingsPage() {
       const subData = await getUserSubscription();
       const tier = await getUserSubscriptionTier();
       setSubscription(subData);
-      setCurrentTier(tier);
+      setTier(tier);
     } catch (error) {
       console.error('Error canceling subscription:', error);
       toast.error('An error occurred. Please try again.');
