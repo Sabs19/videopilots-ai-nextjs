@@ -40,7 +40,9 @@ try {
   process.exit(1);
 }
 
-const requiresSSL = connectionString?.includes('sslmode=require') || isProduction;
+// Only enable SSL if explicitly required in connection string
+// Don't force SSL just because it's production - let the connection string decide
+const requiresSSL = connectionString?.includes('sslmode=require') || connectionString?.includes('sslmode=prefer');
 
 // Build pool configuration using individual parameters for better SSL control
 // Using individual parameters instead of connectionString gives us full control over SSL settings
