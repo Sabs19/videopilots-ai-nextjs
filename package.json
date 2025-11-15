@@ -11,6 +11,7 @@
     "type-check": "tsc --noEmit",
     "db:migrate": "node scripts/migrate.js",
     "user:upgrade": "node scripts/upgrade-user.js",
+    "user:downgrade": "node scripts/downgrade-user.js",
     "postbuild": "echo 'Build completed successfully'",
     "validate-env": "node scripts/validate-env.js"
   },
