@@ -14,9 +14,9 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const validated = registerSchema.parse(body);
 
-    // Check if user already exists
+    // Check if user already exists (case-insensitive email matching)
     const existingUser = await pool.query(
-      'SELECT id FROM user_profiles WHERE email = $1',
+      'SELECT id FROM user_profiles WHERE LOWER(email) = LOWER($1)',
       [validated.email]
     );
 
